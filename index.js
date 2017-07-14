@@ -29,36 +29,45 @@ module.exports = function configure (url, source, callback) {
         return memo.concat(section)
       }, [])
 
-    async.map(settings, function (setting, next) {
-      couch.request({
-        method: 'PUT',
-        path: '_config/' + setting.path,
-        body: setting.value
-      }, function (error, oldValue) {
-        if (error) return next(error)
+    couch.db.get('_membership', function(err, body) {
+      var basePath = '_config/'
+      if (!err) {
+        // if we're using Couch 2
+        basePath = '_node/' + body.all_nodes[0] + '/' + basePath
+      }
 
-        next(null, {
-          path: setting.path,
-          value: setting.value,
-          oldValue: oldValue
+      async.map(settings, function (setting, next) {
+        couch.request({
+          method: 'PUT',
+          path: basePath + setting.path,
+          body: setting.value
+        }, function (error, oldValue) {
+          if (error) return next(error)
+
+          next(null, {
+            path: setting.path,
+            value: setting.value,
+            oldValue: oldValue
+          })
         })
+      }, function (error, responses) {
+        if (error) return callback(error)
+
+        var response = responses.reduce(function (memo, response) {
+          memo[response.path] = {
+            ok: true,
+            value: response.value
+          }
+          if (response.oldValue === response.value) {
+            memo[response.path].unchanged = true
+          }
+
+          return memo
+        }, {})
+
+        callback(null, response)
       })
-    }, function (error, responses) {
-      if (error) return callback(error)
+    });
 
-      var response = responses.reduce(function (memo, response) {
-        memo[response.path] = {
-          ok: true,
-          value: response.value
-        }
-        if (response.oldValue === response.value) {
-          memo[response.path].unchanged = true
-        }
-
-        return memo
-      }, {})
-
-      callback(null, response)
-    })
   })
 }
