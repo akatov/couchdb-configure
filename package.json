@@ -2,6 +2,7 @@
   "name": "couchdb-configure",
   "description": "Configure CouchDB from file or directory.",
   "main": "index.js",
+  "version": "0.0.0-semantically-released",
   "bin": "cli.js",
   "scripts": {
     "test": "standard && tap --coverage test/index.js",
